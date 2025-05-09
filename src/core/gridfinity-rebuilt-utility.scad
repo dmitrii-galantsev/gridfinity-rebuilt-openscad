@@ -158,7 +158,7 @@ module gridfinityInit(gx, gy, h, fill_height = 0, grid_dimensions = GRID_DIMENSI
 
     // Inner Fill
     difference() {
-        color("firebrick")
+        color("firebrick", alpha=0.7)
         translate([0, 0, BASE_HEIGHT])
         linear_extrude(fill_height_real)
         rounded_square(foreach_add(grid_size_mm, -d_wall/2),

@@ -18,13 +18,6 @@ use <../helpers/generic-helpers.scad>
 BASEPLATE_DIMENSIONS = [42, 42];
 
 /**
- * @Summary Minimum height of a baseplate.
- * @Details Ads clearance height to the polygon, and
- *          ensures the base makes contact with the baseplate lip.
- */
-BASEPLATE_HEIGHT = 5;
-
-/**
  * @Summary Corner diameter of the outside of the baseplate.
  */
 BASEPLATE_OUTER_DIAMETER = 8;
@@ -40,6 +33,13 @@ _BASEPLATE_PROFILE = [
     [0.7, (0.7+1.8)], // Straight up
     [(0.7+2.15), (0.7+1.8+2.15)], // Up and out at a 45 degree angle
 ];
+
+/**
+ * @Summary Minimum height of a baseplate.
+ * @Details Ads clearance height to the polygon, and
+ *          ensures the base makes contact with the baseplate lip.
+ */
+BASEPLATE_HEIGHT = _BASEPLATE_PROFILE[3].y;
 
 // ****************************************
 // Calculations
@@ -78,7 +78,7 @@ module _baseplate_cutter_polygon(height) {
     // The minimum height between the baseplate lip and anything below it.
     // Needed to make sure the base always makes contact with the baseplate lip.
     _baseplate_clearance_height = height - _BASEPLATE_PROFILE[3].y;
-    assert(_baseplate_clearance_height > 0, "Baseplate too short.");
+    assert(_baseplate_clearance_height >= 0, "Baseplate too short.");
 
     translated_line = foreach_add(_BASEPLATE_PROFILE,
         [BASEPLATE_INNER_RADIUS, _baseplate_clearance_height]);

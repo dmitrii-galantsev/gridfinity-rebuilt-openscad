@@ -1,3 +1,9 @@
+include <./src/core/standard.scad>
+use <./src/helpers/generic-helpers.scad>
+include <./src/core/gridfinity-baseplate.scad>
+
+include <../../BOSL2/std.scad>
+
 // ===== INFORMATION ===== //
 /*
  IMPORTANT: rendering will be better in development builds and not the official release of OpenSCAD, but it makes rendering only take a couple seconds, even for comically large bins.
@@ -33,6 +39,9 @@ use <src/core/gridfinity-rebuilt-holes.scad>
 /* [Setup Parameters] */
 $fa = 8;
 $fs = 0.25; // .01
+$LAYER_HEIGHT = 0.20; // .04
+// offset for magnet fitment. lower number - looser magnet fitment
+off = -0.05; // .05
 
 /* [General Settings] */
 // number of bases along x-axis
@@ -43,6 +52,12 @@ gridy = 2;
 gridz = 6; //.1
 // Half grid sized bins.  Implies "only corners".
 half_grid = false;
+// base
+enable_base = true;
+// negative thingy down the middle?
+negative_thingy = true;
+negative_thingy_copies = true;
+negative_thingy_rot = true;
 
 /* [Linear Compartments] */
 // number of X Divisions (set to zero to have solid bin)
@@ -105,21 +120,75 @@ enable_thumbscrew = false;
 hole_options = bundle_hole_options(refined_holes, magnet_holes, screw_holes, crush_ribs, chamfer_holes, printable_hole_top);
 grid_dimensions = GRID_DIMENSIONS_MM / (half_grid ? 2 : 1);
 
+// extra magic //
+module my_gridf_edge(length=10, is_snap=false) {
+    module my_sweep_rounded(width=10) {
+        assert(width > 0);
+
+        half_width = width/2;
+        path_points = [
+            [-half_width, 0], //start
+            [half_width, 0], // over
+        ];
+        path_vectors = [
+            path_points[1] - path_points[0],
+        ];
+
+        // these contain the translations, but not the rotations
+        // openscad requires this hacky for loop to get accumulate to work!
+        first_translation = affine_translate([path_points[0].y, 0,path_points[0].x]);
+
+        // Bring extrusion to the xy plane
+        affine_matrix = affine_rotate([90, 0, 90]);
+
+        walls = affine_matrix * first_translation * affine_rotate([0, atanv(path_vectors[0]), 0]);
+
+        multmatrix(walls)
+            linear_extrude(vector_magnitude(path_vectors[0]))
+            children();
+    }
+    new_length = is_snap ? length * l_grid : length;
+    #my_sweep_rounded(new_length)
+        _baseplate_cutter_polygon(BASEPLATE_HEIGHT+0.11);
+
+    translate([0, BASE_PROFILE[3][0]/2, BASE_PROFILE[3][1]/2])
+        hide_this()
+        cuboid(size=[new_length, BASE_PROFILE[3][0], BASE_PROFILE[3][1]])
+        children();
+
+}
+
+
 // ===== IMPLEMENTATION ===== //
 
 //color("tomato") {
 gridfinityInit(gridx, gridy, height(gridz, gridz_define, style_lip, enable_zsnap), height_internal, grid_dimensions=grid_dimensions, sl=style_lip) {
-
     if (divx > 0 && divy > 0) {
-
         cutEqual(n_divx = divx, n_divy = divy, style_tab = style_tab, scoop_weight = scoop, place_tab = place_tab);
-
     } else if (cdivx > 0 && cdivy > 0) {
-
         cutCylinders(n_divx=cdivx, n_divy=cdivy, cylinder_diameter=cd, cylinder_height=ch, coutout_depth=c_depth, orientation=c_orientation, chamfer=c_chamfer);
     }
 }
-gridfinityBase([gridx, gridy], grid_dimensions=grid_dimensions, hole_options=hole_options, only_corners=only_corners || half_grid, thumbscrew=enable_thumbscrew);
+if (enable_base) {
+    difference() {
+        gridfinityBase([gridx, gridy], grid_dimensions=grid_dimensions, hole_options=hole_options, only_corners=only_corners || half_grid, thumbscrew=enable_thumbscrew, off=off);
+        if (negative_thingy) {
+            xcopies(spacing = l_grid, n = negative_thingy_copies ? gridx : 1)
+                up(BASE_PROFILE[3][1])
+                zrot(90)
+                zflip()
+                yflip_copy()
+                my_gridf_edge(length=gridy, is_snap=true);
+            if (negative_thingy_rot) {
+                ycopies(spacing = l_grid, n = negative_thingy_copies ? gridy : 1)
+                    up(BASE_PROFILE[3][1])
+                    zflip()
+                    yflip_copy()
+                    my_gridf_edge(length=gridx, is_snap=true);
+            }
+        }
+    }
+}
 //}
 
 

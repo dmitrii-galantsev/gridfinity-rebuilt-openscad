@@ -26,7 +26,8 @@ TOLLERANCE = 0.01;
 // ****************************************
 // Magnet / Screw Hole Constants
 // ****************************************
-LAYER_HEIGHT = 0.2;
+// 0.2 is default
+LAYER_HEIGHT = is_undef($LAYER_HEIGHT) ? 0.2 : $LAYER_HEIGHT;
 MAGNET_HEIGHT = 2;
 
 SCREW_HOLE_RADIUS = 3 / 2;

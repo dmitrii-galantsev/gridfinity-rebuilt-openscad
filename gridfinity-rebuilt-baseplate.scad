@@ -17,6 +17,7 @@ use <src/helpers/generic-helpers.scad>
 /* [Setup Parameters] */
 $fa = 8;
 $fs = 0.25;
+BASEPLATE_TOP_OFFSET = 0.25; // 0.05
 
 /* [General Settings] */
 // number of bases along x-axis
@@ -69,7 +70,7 @@ hole_options = bundle_hole_options(refined_hole=false, magnet_hole=enable_magnet
 // ===== IMPLEMENTATION ===== //
 
 color("tomato")
-gridfinityBaseplate([gridx, gridy], l_grid, [distancex, distancey], style_plate, hole_options, style_hole, [fitx, fity]);
+gridfinityBaseplate([gridx, gridy], l_grid, [distancex, distancey], style_plate, hole_options, style_hole, [fitx, fity], off=0.0);
 
 // ===== CONSTRUCTION ===== //
 
@@ -87,7 +88,7 @@ gridfinityBaseplate([gridx, gridy], l_grid, [distancex, distancey], style_plate,
  * @param sh Style of screw hole allowing the baseplate to be mounted to something.
  * @param fit_offset Determines where padding is added.
  */
-module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_options, sh, fit_offset = [0, 0]) {
+module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_options, sh, fit_offset = [0, 0], off=0) {
 
     assert(is_list(grid_size_bases) && len(grid_size_bases) == 2,
         "grid_size_bases must be a 2d list");
@@ -103,7 +104,7 @@ module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_option
     additional_height = calculate_offset(sp, hole_options[1], sh);
 
     // Final height of the baseplate. In mm.
-    baseplate_height_mm = additional_height + BASEPLATE_HEIGHT;
+    baseplate_height_mm = additional_height + BASEPLATE_HEIGHT - BASEPLATE_TOP_OFFSET;
 
     // Final size in number of bases
     grid_size = [for (i = [0:1])
@@ -177,14 +178,12 @@ module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_option
                             linear_extrude(additional_height + (2 * TOLLERANCE))
                             profile_skeleton();
                         }
-
                         // Add holes to the solid baseplates.
                         hole_pattern(){
                             // Manget hole
                             translate([0, 0, additional_height+TOLLERANCE])
                             mirror([0, 0, 1])
-                            block_base_hole(hole_options);
-
+                            block_base_hole(hole_options, o=off);
                             translate([0,0,-TOLLERANCE])
                             if (sh == 1) {
                                 cutter_countersink();
