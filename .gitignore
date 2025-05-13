@@ -10,3 +10,5 @@ site/
 __pycache__/
 *.py[cod]
 *$py.class
+*.stl
+*.3mf
