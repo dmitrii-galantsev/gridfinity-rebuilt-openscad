@@ -24,8 +24,10 @@ BASEPLATE_TOP_OFFSET = 0.25; // 0.05
 gridx = 1;
 // number of bases along y-axis
 gridy = 1;
+// Half grid
+half_grid = false;
 
-/* [Screw Together Settings - Defaults work for M3 and 4-40] */
+/* [Screw Together Settings] */
 // screw diameter
 d_screw = 3.35;
 // screw head diameter
@@ -70,7 +72,7 @@ hole_options = bundle_hole_options(refined_hole=false, magnet_hole=enable_magnet
 // ===== IMPLEMENTATION ===== //
 
 color("orange")
-gridfinityBaseplate([gridx, gridy], l_grid, [distancex, distancey], style_plate, hole_options, style_hole, [fitx, fity], off=0.0);
+gridfinityBaseplate([gridx, gridy], l_grid, [distancex, distancey], style_plate, hole_options, style_hole, [fitx, fity], off=0.0, half_grid=half_grid);
 
 // ===== CONSTRUCTION ===== //
 
@@ -88,7 +90,7 @@ gridfinityBaseplate([gridx, gridy], l_grid, [distancex, distancey], style_plate,
  * @param sh Style of screw hole allowing the baseplate to be mounted to something.
  * @param fit_offset Determines where padding is added.
  */
-module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_options, sh, fit_offset = [0, 0], off=0) {
+module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_options, sh, fit_offset = [0, 0], off=0, half_grid=false) {
 
     assert(is_list(grid_size_bases) && len(grid_size_bases) == 2,
         "grid_size_bases must be a 2d list");
@@ -155,6 +157,7 @@ module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_option
     screw_together = sp == 3 || sp == 4;
     minimal = sp == 0 || sp == 4;
 
+    scale(half_grid ? [0.5, 0.5, 1] : [1, 1, 1])
     difference() {
         union() {
             // Baseplate itself
@@ -165,7 +168,7 @@ module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_option
                 pattern_linear(grid_size.x, grid_size.y, length) {
                     if (minimal) {
                         translate([0, 0, -TOLLERANCE/2])
-                        baseplate_cutter([length, length], baseplate_height_mm+TOLLERANCE);
+                        baseplate_cutter([length, length], baseplate_height_mm+TOLLERANCE+BASEPLATE_TOP_OFFSET);
                     } else {
                         translate([0, 0, additional_height+TOLLERANCE/2])
                         baseplate_cutter([length, length]);
@@ -183,11 +186,14 @@ module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_option
                             // Manget hole
                             translate([0, 0, additional_height+TOLLERANCE])
                             mirror([0, 0, 1])
-                            block_base_hole(hole_options, o=off);
+                            scale(half_grid ? [2, 2, 1] : [1, 1, 1])
+                                block_base_hole(hole_options, o=off);
                             translate([0,0,-TOLLERANCE])
                             if (sh == 1) {
+                            scale(half_grid ? [2, 2, 1] : [1, 1, 1])
                                 cutter_countersink();
                             } else if (sh == 2) {
+                            scale(half_grid ? [2, 2, 1] : [1, 1, 1])
                                 cutter_counterbore();
                             }
                         }
@@ -210,7 +216,7 @@ module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_option
 
         if (screw_together) {
             translate([0, 0, additional_height/2])
-            cutter_screw_together(grid_size.x, grid_size.y, length);
+            cutter_screw_together(grid_size.x, grid_size.y, length, half_grid=half_grid);
         }
     }
 }
@@ -312,7 +318,7 @@ module profile_skeleton(size=l_grid) {
     }
 }
 
-module cutter_screw_together(gx, gy, size = l_grid) {
+module cutter_screw_together(gx, gy, size = l_grid, half_grid=false) {
 
     screw(gx, gy);
     rotate([0,0,90])
@@ -324,6 +330,13 @@ module cutter_screw_together(gx, gy, size = l_grid) {
         pattern_linear(1, b, 1, size)
         pattern_linear(1, n_screws, 1, d_screw_head + screw_spacing)
         rotate([0,90,0])
-        cylinder(h=size/2, d=d_screw, center = true);
+        scale(half_grid ? [1, 2, 1] : [1, 1, 1])
+        {
+            // teardrop
+            translate([-(d_screw/3), 0, 0])
+                rotate([0, 0, 45])
+                    cube([d_screw/2, d_screw/2, size/2], center=true);
+            cylinder(h=size/2, d=d_screw, center = true);
+        }
     }
 }
