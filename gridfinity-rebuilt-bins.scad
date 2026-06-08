@@ -36,40 +36,39 @@ use <src/core/gridfinity-rebuilt-holes.scad>
 
 // ===== PARAMETERS ===== //
 
-/* [Setup Parameters] */
-$fa = 8;
-$fs = 0.25; // .01
-$LAYER_HEIGHT = 0.20; // .04
-// offset for magnet fitment. lower number - looser magnet fitment
-off = -0.05; // .05
-
 /* [General Settings] */
 // number of bases along x-axis
-gridx = 3;
+gridx = 1;//[1:10]
 // number of bases along y-axis
-gridy = 2;
+gridy = 1;//[1:10]
 // bin height. See bin height information and "gridz_define" below.
-gridz = 6; //.1
+gridz = 6;//[1:50]
 // Half grid sized bins.  Implies "only corners".
 half_grid = false;
-// base
-enable_base = true;
 // negative thingy down the middle?
-negative_thingy = true;
-negative_thingy_copies = true;
-negative_thingy_rot = true;
+negative_thingy = false;
+// cut zheight into base?
+cut_numbers = true;
 
 /* [Linear Compartments] */
 // number of X Divisions (set to zero to have solid bin)
-divx = 1;
+divx = 1;//[1:10]
 // number of Y Divisions (set to zero to have solid bin)
-divy = 1;
+divy = 1;//[1:10]
+
+/* [Height] */
+// determine what the variable "gridz" applies to based on your use case
+gridz_define = 0; // [0:7mm increments - Zack's method,1:internal height in mm, 2:overall external height in mm]
+// overrides internal block height of bin (for solid containers). Leave zero for default height. Units: mm
+height_internal = 0;
+// snap gridz height to nearest 7mm increment
+enable_zsnap = true;
 
 /* [Cylindrical Compartments] */
 // number of cylindrical X Divisions (mutually exclusive to Linear Compartments)
-cdivx = 0;
+cdivx = 0;//[1:10]
 // number of cylindrical Y Divisions (mutually exclusive to Linear Compartments)
-cdivy = 0;
+cdivy = 0; //[0:1:10]
 // orientation
 c_orientation = 2; // [0: x direction, 1: y direction, 2: z direction]
 // diameter of cylindrical cut outs
@@ -79,15 +78,7 @@ ch = 1;  //.1
 // spacing to lid
 c_depth = 1;
 // chamfer around the top rim of the holes
-c_chamfer = 0.5; // .1
-
-/* [Height] */
-// determine what the variable "gridz" applies to based on your use case
-gridz_define = 0; // [0:gridz is the height of bins in units of 7mm increments - Zack's method,1:gridz is the internal height in millimeters, 2:gridz is the overall external height of the bin in millimeters]
-// overrides internal block height of bin (for solid containers). Leave zero for default height. Units: mm
-height_internal = 0;
-// snap gridz height to nearest 7mm increment
-enable_zsnap = false;
+c_chamfer = 0.5; //[0:0.1:1]
 
 /* [Features] */
 // the type of tabs
@@ -97,15 +88,15 @@ place_tab = 0; // [0:Everywhere-Normal,1:Top-Left Division]
 // how should the top lip act
 style_lip = 0; //[0: Regular lip, 1:remove lip subtractively, 2: remove lip and retain height]
 // scoop weight percentage. 0 disables scoop, 1 is regular scoop. Any real number will scale the scoop.
-scoop = 1; //[0:0.1:1]
+scoop = 0.5; //[0:0.1:1]
 
 /* [Base Hole Options] */
 // only cut magnet/screw holes at the corners of the bin to save uneccesary print time
-only_corners = false;
+only_corners = true;
 //Use gridfinity refined hole style. Not compatible with magnet_holes!
-refined_holes = true;
+refined_holes = false;
 // Base will have holes for 6mm Diameter x 2mm high magnets.
-magnet_holes = false;
+magnet_holes = true;
 // Base will have holes for M3 screws.
 screw_holes = false;
 // Magnet holes will have crush ribs to hold the magnet.
@@ -116,6 +107,18 @@ chamfer_holes = true;
 printable_hole_top = true;
 // Enable "gridfinity-refined" thumbscrew hole in the center of each base: https://www.printables.com/model/413761-gridfinity-refined
 enable_thumbscrew = false;
+
+/* [Advanced] */
+$LAYER_HEIGHT = 0.20; // .04
+// offset for magnet fitment. lower number - looser magnet fitment
+off = -0.10; // .05
+negative_thingy_copies = true;
+negative_thingy_rot = true;
+enable_base = true;
+
+/* [Hidden] */
+$fa = 8;
+$fs = 0.25; // .01
 
 hole_options = bundle_hole_options(refined_holes, magnet_holes, screw_holes, crush_ribs, chamfer_holes, printable_hole_top);
 grid_dimensions = GRID_DIMENSIONS_MM / (half_grid ? 2 : 1);
@@ -186,6 +189,23 @@ if (enable_base) {
                     yflip_copy()
                     my_gridf_edge(length=gridx, is_snap=true);
             }
+        }
+        if (cut_numbers) {
+            gridz_type_str = gridz_define == 0 ? "z"
+                : (gridz_define == 1 ? "i"
+                : "e");
+            gridz_snap_str = enable_zsnap ? "|" : " ";
+            gridz_str = str(gridz_type_str, gridz_snap_str, gridz);
+            #translate(
+                [
+                    gridx % 2 == 1 ? 0 : GRID_DIMENSIONS_MM[0] / 2,
+                    gridy % 2 == 1 ? 0 : GRID_DIMENSIONS_MM[0] / 2,
+                    0,
+                ]
+            )
+                linear_extrude($LAYER_HEIGHT)
+                    rotate([00, 180, 90])
+                        text(gridz_str, size=8, font="Liberation Mono:style=Bold", halign="center", valign="center");
         }
     }
 }

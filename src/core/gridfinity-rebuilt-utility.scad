@@ -156,6 +156,8 @@ module gridfinityInit(gx, gy, h, fill_height = 0, grid_dimensions = GRID_DIMENSI
     fill_height_real = fill_height != 0 ? fill_height : h - STACKING_LIP_SUPPORT_HEIGHT;
     grid_size_mm = [gx * grid_dimensions.x, gy * grid_dimensions.y];
 
+    echo("Gridfinity Bin: ", concat(grid_size_mm, h), "mm and fill height ", fill_height_real, "mm");
+
     // Inner Fill
     difference() {
         color("firebrick", alpha=0.7)
@@ -164,6 +166,7 @@ module gridfinityInit(gx, gy, h, fill_height = 0, grid_dimensions = GRID_DIMENSI
         rounded_square(foreach_add(grid_size_mm, -d_wall/2),
                        BASE_TOP_RADIUS,
                        center=true);
+
         children();
     }
 
@@ -298,6 +301,7 @@ module gridfinityBase(grid_size, grid_dimensions=GRID_DIMENSIONS_MM, hole_option
         block_base(hole_options, off, individual_base_size_mm, thumbscrew=thumbscrew);
     }
 }
+
 
 /**
  * @brief Create the base of a gridfinity bin, or use it for a custom object.

@@ -59,6 +59,11 @@ style_plate = 3; // [0: thin, 1:weighted, 2:skeletonized, 3: screw together, 4: 
 // hole styles
 style_hole = 0; // [0:none, 1:countersink, 2:counterbore]
 
+// snap together style for screw together baseplates
+snap_together = false; // [true:false]
+// only snap
+snap_only = false; // [true:false]
+
 /* [Magnet Hole] */
 // Baseplate will have holes for 6mm Diameter x 2mm high magnets.
 enable_magnet = true;
@@ -71,8 +76,11 @@ hole_options = bundle_hole_options(refined_hole=false, magnet_hole=enable_magnet
 
 // ===== IMPLEMENTATION ===== //
 
+if (snap_only) {
+    !snap();
+}
 color("orange")
-gridfinityBaseplate([gridx, gridy], l_grid, [distancex, distancey], style_plate, hole_options, style_hole, [fitx, fity], off=0.0, half_grid=half_grid);
+gridfinityBaseplate([gridx, gridy], l_grid, [distancex, distancey], style_plate, hole_options, style_hole, [fitx, fity], off=0.0, half_grid=half_grid, snap_together=snap_together);
 
 // ===== CONSTRUCTION ===== //
 
@@ -85,12 +93,12 @@ gridfinityBaseplate([gridx, gridy], l_grid, [distancex, distancey], style_plate,
  * @param min_size_mm Minimum size of the baseplate. [x, y]
  *                    Extra space is filled with solid material.
  *                    Enables "Fit to Drawer."
- * @param sp Baseplate Style
+ * @param style_plate Baseplate Style
  * @param hole_options
  * @param sh Style of screw hole allowing the baseplate to be mounted to something.
  * @param fit_offset Determines where padding is added.
  */
-module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_options, sh, fit_offset = [0, 0], off=0, half_grid=false) {
+module gridfinityBaseplate(grid_size_bases, length, min_size_mm, style_plate, hole_options, sh, fit_offset = [0, 0], off=0, half_grid=false, snap_together=false) {
 
     assert(is_list(grid_size_bases) && len(grid_size_bases) == 2,
         "grid_size_bases must be a 2d list");
@@ -103,7 +111,7 @@ module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_option
     assert(grid_size_bases.y > 0 || min_size_mm.y > 0,
         "Must have positive y grid amount!");
 
-    additional_height = calculate_offset(sp, hole_options[1], sh);
+    additional_height = calculate_offset(style_plate, hole_options[1], sh);
 
     // Final height of the baseplate. In mm.
     baseplate_height_mm = additional_height + BASEPLATE_HEIGHT - BASEPLATE_TOP_OFFSET;
@@ -154,8 +162,8 @@ module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_option
         echo(str("Padding -Y (in mm): ", padding_mm.y * (1 - fit_percent_positive.y)));
     }
 
-    screw_together = sp == 3 || sp == 4;
-    minimal = sp == 0 || sp == 4;
+    screw_together = style_plate == 3 || style_plate == 4 || style_plate == 0;
+    minimal = style_plate == 0 || style_plate == 4;
 
     scale(half_grid ? [0.5, 0.5, 1] : [1, 1, 1])
     difference() {
@@ -174,9 +182,9 @@ module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_option
                         baseplate_cutter([length, length]);
 
                         // Bottom/through pattern for the solid baseplates.
-                        if (sp == 1) {
+                        if (style_plate == 1) {
                             cutter_weight();
-                        } else if (sp == 2 || sp == 3) {
+                        } else if (style_plate == 2 || style_plate == 3) {
                             translate([0,0,-TOLLERANCE])
                             linear_extrude(additional_height + (2 * TOLLERANCE))
                             profile_skeleton();
@@ -215,8 +223,8 @@ module gridfinityBaseplate(grid_size_bases, length, min_size_mm, sp, hole_option
         }
 
         if (screw_together) {
-            translate([0, 0, additional_height/2])
-            cutter_screw_together(grid_size.x, grid_size.y, length, half_grid=half_grid);
+            translate([0, 0, additional_height/2 + (style_plate == 0 ? 1.5 : 0)])
+            cutter_screw_together(grid_size.x, grid_size.y, length, half_grid=half_grid, snap_together=snap_together);
         }
     }
 }
@@ -318,11 +326,25 @@ module profile_skeleton(size=l_grid) {
     }
 }
 
-module cutter_screw_together(gx, gy, size = l_grid, half_grid=false) {
+module snap(size = l_grid, d_screw=d_screw) {
+    d = d_screw;
+    d2 = d_screw * 1.1;
+    h2 = 0.7;
+    h = size/3-h2;
+    cylinder(h=h/2, d1=d*0.9, d2=d);
+    #translate([0,0,h/2])
+        cylinder(h=h2/2, d1=d, d2=d2);
+    #translate([0,0,h/2 + h2/2])
+        cylinder(h=h2/2, d1=d2, d2=d);
+    translate([0,0,h/2 + h2])
+        cylinder(h=h/2, d1=d, d2=d*0.9);
+}
 
-    screw(gx, gy);
+module cutter_screw_together(gx, gy, size = l_grid, half_grid=false, snap_together=false) {
+
+    screw(gx, gy-(snap_together?1:0));
     rotate([0,0,90])
-    screw(gy, gx);
+    screw(gy, gx-(snap_together?1:0));
 
     module screw(a, b) {
         copy_mirror([1,0,0])
@@ -330,13 +352,14 @@ module cutter_screw_together(gx, gy, size = l_grid, half_grid=false) {
         pattern_linear(1, b, 1, size)
         pattern_linear(1, n_screws, 1, d_screw_head + screw_spacing)
         rotate([0,90,0])
+        scale(snap_together ? [1.2, 1.2, 1.2] : [1, 1, 1])
         scale(half_grid ? [1, 2, 1] : [1, 1, 1])
         {
             // teardrop
             translate([-(d_screw/3), 0, 0])
                 rotate([0, 0, 45])
                     cube([d_screw/2, d_screw/2, size/2], center=true);
-            cylinder(h=size/2, d=d_screw, center = true);
+            #cylinder(h=size/2, d=d_screw, center = true);
         }
     }
 }
